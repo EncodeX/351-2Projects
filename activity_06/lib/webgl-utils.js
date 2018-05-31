@@ -146,7 +146,7 @@ WebGLUtils = function () {
      * @return {!WebGLContext} The created context.
      */
     var create3DContext = function (canvas, opt_attribs) {
-        // var names = ["webgl2", "webgl", "experimental-webgl", "webkit-3d", "moz-webgl"];
+        // var names = ["webgl", "experimental-webgl", "webkit-3d", "moz-webgl"];
         var names = ["webgl2"];
         var context = null;
         for (var ii = 0; ii < names.length; ++ii) {

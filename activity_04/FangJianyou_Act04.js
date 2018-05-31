@@ -276,8 +276,8 @@ function main() {
     drawResize();
     drawResize();
 
-    window.addEventListener("keydown", keyDownHandler, false);
-    window.addEventListener("keyup", keyUpHandler, false);
+    // window.addEventListener("keydown", keyDownHandler, false);
+    // window.addEventListener("keyup", keyUpHandler, false);
 
     var tick = function () {
         var time = Date.now();

@@ -38,8 +38,11 @@ class Force {
     static get CENTRIPETAL() {
         return 8;
     }
-    static get MAX() {
+    static get BOIDS() {
         return 9;
+    }
+    static get MAX() {
+        return 10;
     }
     constructor() {
         this.type = Force.NONE;
@@ -51,6 +54,7 @@ class Force {
         this.direction = [0, 0, 0];
         this.index_p0 = 0;
         this.index_p1 = 0;
+        this.neighbours = [];
     }
 }
 
@@ -79,8 +83,14 @@ class Constraint {
     static get TORNADO_DAMPING() {
         return 7;
     }
-    static get MAX() {
+    static get BOIDS_LEADER() {
         return 8;
+    }
+    static get SPHERE() {
+        return 9;
+    }
+    static get MAX() {
+        return 10;
     }
     constructor() {
         this.type = Constraint.NONE;
@@ -93,6 +103,7 @@ class Constraint {
         this.bounceLoss = 0;
         this.index_p = 0;
         this.force = null;
+        this.force2 = null;
     }
 }
 
@@ -153,7 +164,7 @@ class ParticleSystem {
         this.state = [];
         this.stateNext = [];
         this.stateDot = [];
-        this.stateDotM = [];
+        this.stateMid = [];
         // this.forceSet = [];
         // this.constraintSet = [];
         this.models = {
@@ -165,6 +176,9 @@ class ParticleSystem {
         this.particleCount = 0;
 
         this.implicit = true;
+
+        this.solvers = [this.eulerSolver, this.midPointSolver, this.verletSolver];
+        this.currentSolver = this.solvers[0];
     }
 
     init(partCount) {
@@ -198,88 +212,8 @@ class ParticleSystem {
 
             let particleDotM = new Particle();
             particleDotM.mass = particle.mass;
-            this.stateDotM.push(particleDotM);
-            // TODO when initializing, make mass to 1 / mass
+            this.stateMid.push(particleDotM);
         }
-
-        // let spring = new Force();
-        // spring.type = Force.SPRING;
-        // spring.k_spring = 4;
-        // spring.length_spring = 0.4;
-        // spring.index_p0 = 0;
-        // spring.index_p1 = 1;
-        // this.forceSet.push(spring);
-
-        // for (let i = 0; i < 10; i++) {
-        //     for (let j = 0; j < 100; j++) {
-        //         let spring = new Force();
-        //         spring.type = Force.SPRING;
-        //         spring.k_spring = 3;
-        //         spring.length_spring = 0.4;
-        //         spring.index_p0 = i * 100;
-        //         spring.index_p1 = i * 100 + j;
-        //         this.forceSet.push(spring);
-        //
-        //         if (j != 99) {
-        //             let repulse = new Force();
-        //             repulse.type = Force.REPULSIVE;
-        //             repulse.k_spring = 0.02;
-        //             repulse.length_spring = 0.6;
-        //             repulse.index_p0 = i * 100 + j;
-        //             repulse.index_p1 = i * 100 + j + 1;
-        //             this.forceSet.push(repulse);
-        //         }
-        //     }
-        //     if (i != 0) {
-        //         let spring = new Force();
-        //         spring.type = Force.REPULSIVE;
-        //         spring.k_spring = 0.02;
-        //         spring.length_spring = 0.6;
-        //         spring.index_p0 = i * 100;
-        //         spring.index_p1 = 0;
-        //         this.forceSet.push(spring);
-        //     }
-        // }
-
-        /***
-          SPRING SPHERE
-        ***/
-
-        for (let i = 1; i < this.particleCount; i++) {
-            let spring = new Force();
-            spring.type = Force.SPRING;
-            spring.k_spring = 2.3;
-            spring.length_spring = 3;
-            spring.index_p0 = 0;
-            spring.index_p1 = i;
-            // this.forceSet.push(spring);
-            this.addNewForce(`spring_sphere`, spring);
-
-            for (let j = i + 1; j < this.particleCount; j++) {
-                let repulse = new Force();
-                repulse.type = Force.REPULSIVE;
-                repulse.k_spring = 6;
-                repulse.length_spring = 0.3;
-                repulse.index_p0 = i;
-                repulse.index_p1 = j;
-                // this.forceSet.push(repulse);
-                this.addNewForce(`spring_sphere`, repulse);
-            }
-        }
-
-        let stay = new Constraint();
-        stay.type = Constraint.STAY;
-        stay.index_p = 0;
-        // this.constraintSet.push(stay);
-        this.addNewConstraint(`spring_sphere`, stay);
-
-        let springResetPoints = [];
-        springResetPoints.push([0, [0, 0, 0]]);
-        this.setResetPoint(`spring_sphere`, ParticleModel.RESET_POS_SPECIFIED, springResetPoints);
-        this.setResetColor(`spring_sphere`, ParticleModel.RESET_COLOR_ALL_RAND, []);
-        this.setResetSize(`spring_sphere`, ParticleModel.RESET_SIZE_ALL, [
-            [0, 10]
-        ]);
 
         /***
           GRAVITY BOX
@@ -300,12 +234,56 @@ class ParticleSystem {
         // this.constraintSet.push(cube);
         this.addNewConstraint('gravity_box', cube);
 
-        // Set current model
-        this.setCurrentModel(this.models[this.models.names[0]]);
         this.setResetSize(`gravity_box`, ParticleModel.RESET_SIZE_ALL, [
             [0, 10]
         ]);
         this.setResetColor(`gravity_box`, ParticleModel.RESET_COLOR_ALL_RAND, []);
+        this.setResetPoint(`gravity_box`, ParticleModel.RESET_POS_SPECIFIED, [
+            [0, [0, 0, 0]]
+        ]);
+
+        // Set current model
+        this.setCurrentModel(this.models[this.models.names[0]]);
+
+        /***
+          SPRING SPHERE
+        ***/
+
+        for (let i = 1; i < this.particleCount; i++) {
+            let spring = new Force();
+            spring.type = Force.SPRING;
+            spring.k_spring = 5;
+            spring.length_spring = 3.5;
+            spring.index_p0 = 0;
+            spring.index_p1 = i;
+            // this.forceSet.push(spring);
+            this.addNewForce(`spring_sphere`, spring);
+
+            for (let j = i + 1; j < this.particleCount; j++) {
+                let repulse = new Force();
+                repulse.type = Force.REPULSIVE;
+                repulse.k_spring = 20;
+                repulse.length_spring = 0.5;
+                repulse.index_p0 = i;
+                repulse.index_p1 = j;
+                // this.forceSet.push(repulse);
+                this.addNewForce(`spring_sphere`, repulse);
+            }
+        }
+
+        let stay = new Constraint();
+        stay.type = Constraint.STAY;
+        stay.index_p = 0;
+        // this.constraintSet.push(stay);
+        this.addNewConstraint(`spring_sphere`, stay);
+
+        let springResetPoints = [];
+        springResetPoints.push([0, [0, 0, 0]]);
+        this.setResetPoint(`spring_sphere`, ParticleModel.RESET_POS_SPECIFIED, springResetPoints);
+        this.setResetColor(`spring_sphere`, ParticleModel.RESET_COLOR_ALL_RAND, []);
+        this.setResetSize(`spring_sphere`, ParticleModel.RESET_SIZE_ALL, [
+            [0, 10]
+        ]);
 
         /***
           FLAME
@@ -333,14 +311,6 @@ class ParticleSystem {
             this.addNewForce(`flame`, flameRand);
         }
 
-        let flameTop = new Constraint();
-        flameTop.type = Constraint.FIRE_RECREATOR;
-        flameTop.xmin = 3.0;
-        flameTop.xmax = 80.0;
-        flameTop.zmin = 0.0;
-        flameTop.zmax = 1.0;
-        this.addNewConstraint(`flame`, flameTop);
-
         let randomWind = new Constraint();
         randomWind.type = Constraint.WIND_RANDOMIZER;
         randomWind.xmin = 0;
@@ -348,6 +318,22 @@ class ParticleSystem {
         randomWind.zmax = 0.7;
         randomWind.force = flameWind;
         this.addNewConstraint(`flame`, randomWind);
+
+        let sphere = new Constraint();
+        sphere.type = Constraint.SPHERE;
+        sphere.xmin = 0;
+        sphere.ymin = 0;
+        sphere.zmin = 3.3;
+        sphere.xmax = 2.5;
+        this.addNewConstraint(`flame`, sphere);
+
+        let flameTop = new Constraint();
+        flameTop.type = Constraint.FIRE_RECREATOR;
+        flameTop.xmin = 3.0;
+        flameTop.xmax = 80.0;
+        flameTop.zmin = 0.0;
+        flameTop.zmax = 1.0;
+        this.addNewConstraint(`flame`, flameTop);
 
         this.setResetPoint(`flame`, ParticleModel.RESET_POS_ALL, [
             [0, [0, 0, 0]]
@@ -367,31 +353,85 @@ class ParticleSystem {
             tornadoUp.type = Force.GRAV_P_SELECT;
             tornadoUp.direction = [0, 0, 1];
             tornadoUp.forceFix = [0, 0, 1];
-            tornadoUp.force = 0.8;
+            tornadoUp.force = 3;
             tornadoUp.index_p0 = i;
             this.addNewForce(`tornado`, tornadoUp);
 
-            let upDamping = new Constraint();
-            upDamping.type = Constraint.TORNADO_DAMPING;
-            upDamping.xmax = 16;
-            upDamping.xmin = 9.832;
-            upDamping.zmax = 4;
-            upDamping.force = tornadoUp;
-            this.addNewConstraint(`tornado`, upDamping);
+            // let upDamping = new Constraint();
+            // upDamping.type = Constraint.TORNADO_DAMPING;
+            // upDamping.xmax = 16;
+            // upDamping.xmin = 9.832;
+            // upDamping.zmax = 4;
+            // upDamping.force = tornadoUp;
+            // this.addNewConstraint(`tornado`, upDamping);
 
             let centripetal = new Force();
+            let angle = 2 * Math.PI * Math.random();
             centripetal.type = Force.CENTRIPETAL;
-            centripetal.force = 4;
+            centripetal.force = 0.5;
+            centripetal.forceFix = [Math.cos(angle), Math.sin(angle), 0];
             centripetal.index_p0 = i;
             this.addNewForce(`tornado`, centripetal);
+
+            let upDamping = new Constraint();
+            upDamping.type = Constraint.TORNADO_DAMPING;
+            upDamping.xmax = 2;
+            upDamping.xmin = 3;
+            upDamping.ymax = 0.5;
+            upDamping.zmax = 2;
+            upDamping.zmin = -2;
+            upDamping.force = centripetal;
+            upDamping.force2 = tornadoUp;
+            upDamping.index_p = i;
+            this.addNewConstraint(`tornado`, upDamping);
         }
 
         let round = new Force();
         round.type = Force.ROUND;
         round.force = 8;
         this.addNewForce(`tornado`, round);
+        this.setResetSize(`tornado`, ParticleModel.RESET_SIZE_ALL, [
+            [0, 10]
+        ]);
+        this.setResetColor(`tornado`, ParticleModel.RESET_COLOR_ALL_RAND, []);
 
-        this.addNewConstraint('tornado', cube);
+        /***
+          BOIDS
+        ***/
+
+        for (let i = 1; i < this.particleCount; i++) {
+            let boids = new Force();
+
+            boids.type = Force.BOIDS;
+
+            boids.force = 4;
+
+            boids.index_p0 = i;
+
+            let neighbours = [];
+            for (let j = 0; j < 400; j++) {
+                let index = Math.floor(Math.random() * (this.particleCount - 1)) + 1;
+                // neighbours.push(this.getParticleIndex(i + j));
+                neighbours.push(index);
+            }
+
+            for (let j = 0; j < neighbours.length; j++) {
+                boids.neighbours.push(neighbours[j]);
+            }
+
+            this.addNewForce(`boids`, boids);
+        }
+
+        // this.addNewConstraint(`boids`, cube);
+
+        let leader = new Constraint();
+        leader.type = Constraint.BOIDS_LEADER;
+        leader.index_p = 0;
+        this.addNewConstraint(`boids`, leader);
+        this.setResetSize(`boids`, ParticleModel.RESET_SIZE_ALL, [
+            [0, 10]
+        ]);
+        this.setResetColor(`boids`, ParticleModel.RESET_COLOR_ALL_RAND, []);
     }
 
     updateState(elapsedTime) {
@@ -408,24 +448,24 @@ class ParticleSystem {
         for (let i = 0; i < this.particleCount; i++) {
             let pNext = this.stateNext[i];
             let pDot = this.stateDot[i];
-            let pDotM = this.stateDotM[i];
+            let pMid = this.stateMid[i];
             pNext.ftot[0] = 0;
             pNext.ftot[1] = 0;
             pNext.ftot[2] = 0;
 
-            // pDotM.ftot[0] = 0;
-            // pDotM.ftot[1] = 0;
-            // pDotM.ftot[2] = 0;
-            //
-            // pDotM.pos[0] = pNext.pos[0] + pDot.pos[0] * elapsedTime * 0.5;
-            // pDotM.pos[1] = pNext.pos[1] + pDot.pos[1] * elapsedTime * 0.5;
-            // pDotM.pos[2] = pNext.pos[2] + pDot.pos[2] * elapsedTime * 0.5;
+            pMid.ftot[0] = 0;
+            pMid.ftot[1] = 0;
+            pMid.ftot[2] = 0;
+
+            // pMid.pos[0] = pNext.pos[0] + pDot.pos[0] * elapsedTime * 0.5;
+            // pMid.pos[1] = pNext.pos[1] + pDot.pos[1] * elapsedTime * 0.5;
+            // pMid.pos[2] = pNext.pos[2] + pDot.pos[2] * elapsedTime * 0.5;
         }
 
         // apply all forces to particles
         for (let i = 0; i < this.currentModel.forceSet.length; i++) {
             this.applyForce(this.currentModel.forceSet[i], this.stateNext);
-            // this.applyForce(this.forceSet[i], this.stateDotM);
+            // this.applyForce(this.forceSet[i], this.stateMid);
         }
     }
 
@@ -562,13 +602,55 @@ class ParticleSystem {
             case Force.CENTRIPETAL:
                 {
                     p0 = particles[force.index_p0];
-                    let dist = p0.pos[2] + 2;
-                    if (dist < 0.1) {
-                        p0.ftot[0] += -force.force * p0.pos[0];
-                        p0.ftot[1] += -force.force * p0.pos[1];
-                    } else {
-                        p0.ftot[0] += force.force * p0.pos[0] * dist / 4;
-                        p0.ftot[1] += force.force * p0.pos[1] * dist / 4;
+                    p0.ftot[0] += force.force * force.forceFix[0];
+                    p0.ftot[1] += force.force * force.forceFix[1];
+                }
+                break;
+            case Force.BOIDS:
+                {
+                    let pCurr = this.state[force.index_p0];
+
+                    let sepVec = [0, 0, 0];
+                    let cohSum = [0, 0, 0];
+                    let alignVec = [0, 0, 0];
+                    let leaderVec = [0, 0, 0];
+
+                    let leader = this.state[0];
+
+                    for (let i = 0; i < force.neighbours.length; i++) {
+                        let neighbour = this.state[force.neighbours[i]];
+
+                        for (let j = 0; j < 3; j++) {
+                            sepVec[j] += pCurr.pos[j] - neighbour.pos[j];
+                            cohSum[j] += neighbour.pos[j];
+                            alignVec[j] += pCurr.ftot[j];
+                            leaderVec[j] += leader.pos[j] - pCurr.pos[j];
+                        }
+                    }
+
+                    let cohVec = [0, 0, 0];
+
+                    for (let j = 0; j < 3; j++) {
+                        cohSum[j] /= force.neighbours.length;
+                        cohVec[j] = cohSum[j] - pCurr.pos[j];
+                    }
+
+                    // if (force.index_p0 == 0) {
+                    //     console.log(sepVec, cohVec, alignVec);
+                    // }
+
+                    sepVec = this.normalize(sepVec);
+                    cohVec = this.normalize(cohVec);
+                    alignVec = this.normalize(alignVec);
+                    leaderVec = this.normalize(leaderVec);
+
+                    let pNext = particles[force.index_p0];
+                    for (let j = 0; j < 3; j++) {
+                        pNext.ftot[j] += sepVec[j] * force.force * (Math.random() * 0.8 + 0.4);
+                        pNext.ftot[j] += cohVec[j] * force.force * (Math.random() * 0.3 + 0.2);
+                        pNext.ftot[j] += alignVec[j] * force.force;
+                        pNext.ftot[j] += leaderVec[j] * force.force;
+                        pNext.ftot[j] += (Math.random() * 0.3 - 0.15) * force.force;
                     }
                 }
                 break;
@@ -576,10 +658,15 @@ class ParticleSystem {
     }
 
     calcDot(elapsedTime) {
+        this.currentSolver(elapsedTime);
+    }
+
+    eulerSolver(elapsedTime) {
         for (let i = 0; i < this.particleCount; i++) {
+            let pCurr = this.state[i];
             let pNext = this.stateNext[i];
             let pDot = this.stateDot[i];
-            let pDotM = this.stateDotM[i];
+            let pMid = this.stateMid[i];
 
             // acc
             pDot.vel[0] = pNext.ftot[0] * pNext.mass;
@@ -597,11 +684,104 @@ class ParticleSystem {
         }
     }
 
+    midPointSolver(elapsedTime) {
+        for (let i = 0; i < this.particleCount; i++) {
+            let pCurr = this.state[i];
+            let pNext = this.stateNext[i];
+            let pDot = this.stateDot[i];
+            let pMid = this.stateMid[i];
+
+            // acc
+            pDot.vel[0] = pNext.ftot[0] * pNext.mass;
+            pDot.vel[1] = pNext.ftot[1] * pNext.mass;
+            pDot.vel[2] = pNext.ftot[2] * pNext.mass;
+
+            // vel
+            pMid.vel[0] = pDot.vel[0] * elapsedTime;
+            pMid.vel[1] = pDot.vel[1] * elapsedTime;
+            pMid.vel[2] = pDot.vel[2] * elapsedTime;
+
+            pMid.pos[0] = pNext.pos[0] + pMid.vel[0] * elapsedTime * 0.5;
+            pMid.pos[1] = pNext.pos[1] + pMid.vel[1] * elapsedTime * 0.5;
+            pMid.pos[2] = pNext.pos[2] + pMid.vel[2] * elapsedTime * 0.5;
+        }
+
+        for (let i = 0; i < this.currentModel.forceSet.length; i++) {
+            this.applyForce(this.currentModel.forceSet[i], this.stateMid);
+        }
+
+        for (let i = 0; i < this.particleCount; i++) {
+            let pDot = this.stateDot[i];
+            let pMid = this.stateMid[i];
+            let pNext = this.stateNext[i];
+            // acc
+            pDot.vel[0] = pMid.ftot[0] * pNext.mass;
+            pDot.vel[1] = pMid.ftot[1] * pNext.mass;
+            pDot.vel[2] = pMid.ftot[2] * pNext.mass;
+
+            // vel
+            pDot.pos[0] += pDot.vel[0] * elapsedTime;
+            pDot.pos[1] += pDot.vel[1] * elapsedTime;
+            pDot.pos[2] += pDot.vel[2] * elapsedTime;
+
+            pDot.pos[0] *= this.kDrag;
+            pDot.pos[1] *= this.kDrag;
+            pDot.pos[2] *= this.kDrag;
+        }
+    }
+
+    verletSolver(elapsedTime) {
+        for (let i = 0; i < this.particleCount; i++) {
+            let pCurr = this.state[i];
+            let pNext = this.stateNext[i];
+            let pDot = this.stateDot[i];
+            let pMid = this.stateMid[i];
+
+            // i acc
+            pDot.vel[0] = pNext.ftot[0] * pNext.mass;
+            pDot.vel[1] = pNext.ftot[1] * pNext.mass;
+            pDot.vel[2] = pNext.ftot[2] * pNext.mass;
+
+            // i + 1 vel
+            pMid.vel[0] = pDot.vel[0] * elapsedTime;
+            pMid.vel[1] = pDot.vel[1] * elapsedTime;
+            pMid.vel[2] = pDot.vel[2] * elapsedTime;
+
+            // i + 1 pos
+            pMid.pos[0] = pNext.pos[0] + pMid.vel[0] * elapsedTime * 1.5;
+            pMid.pos[1] = pNext.pos[1] + pMid.vel[1] * elapsedTime * 1.5;
+            pMid.pos[2] = pNext.pos[2] + pMid.vel[2] * elapsedTime * 1.5;
+        }
+
+        for (let i = 0; i < this.currentModel.forceSet.length; i++) {
+            this.applyForce(this.currentModel.forceSet[i], this.stateMid);
+        }
+
+        for (let i = 0; i < this.particleCount; i++) {
+            let pDot = this.stateDot[i];
+            let pMid = this.stateMid[i];
+            let pNext = this.stateNext[i];
+            // i + 1 acc
+            pMid.vel[0] = pMid.ftot[0] * pNext.mass;
+            pMid.vel[1] = pMid.ftot[1] * pNext.mass;
+            pMid.vel[2] = pMid.ftot[2] * pNext.mass;
+
+            // vel
+            pDot.pos[0] += (pDot.vel[0] + pMid.vel[0]) * 0.5 * elapsedTime;
+            pDot.pos[1] += (pDot.vel[1] + pMid.vel[1]) * 0.5 * elapsedTime;
+            pDot.pos[2] += (pDot.vel[2] + pMid.vel[2]) * 0.5 * elapsedTime;
+
+            pDot.pos[0] *= this.kDrag;
+            pDot.pos[1] *= this.kDrag;
+            pDot.pos[2] *= this.kDrag;
+        }
+    }
+
     calcNextState(elapsedTime) {
         for (let i = 0; i < this.particleCount; i++) {
             let pNext = this.stateNext[i];
             let pDot = this.stateDot[i];
-            let pDotM = this.stateDotM[i];
+            let pMid = this.stateMid[i];
 
             pNext.pos[0] += pDot.pos[0] * elapsedTime;
             pNext.pos[1] += pDot.pos[1] * elapsedTime;
@@ -692,16 +872,83 @@ class ParticleSystem {
                 break;
             case Constraint.TORNADO_DAMPING:
                 {
-                    let force = constraint.force;
-                    let pCurr = this.state[force.index_p0];
-                    let distXY = Math.sqrt(Math.pow(pCurr.pos[0], 2) + Math.pow(pCurr.pos[1], 2));
-                    let distZ = pCurr.pos[2] + 2;
-                    if (distZ < 0.1) {
-                        force.force = constraint.xmax * ((2 - distXY) / 2);
-                    } else {
-                        force.force = constraint.xmax * ((2 - distXY) / 2 + (4 - distZ) / 4);
+                    let pNext = this.stateNext[constraint.index_p];
+                    let pDot = this.stateDot[constraint.index_p];
+                    // let distXY = Math.sqrt(Math.pow(pCurr.pos[0], 2) + Math.pow(pCurr.pos[1], 2));
+                    // let distZ = pCurr.pos[2] + 2;
+                    // if (distZ < 0.1) {
+                    //     force.force = constraint.xmax * ((2 - distXY) / 2);
+                    // } else {
+                    //     force.force = constraint.xmax * ((2 - distXY) / 2 + (4 - distZ) / 4);
+                    // }
+                    // force.force -= constraint.xmin;
+                    if (pNext.pos[2] > constraint.zmax) {
+                        pNext.pos[0] = 0;
+                        pNext.pos[1] = 0;
+                        pNext.pos[2] = constraint.zmin;
+
+                        pDot.pos[0] = 0;
+                        pDot.pos[1] = 0;
+                        pDot.pos[2] = 0;
+
+                        let force = constraint.force;
+                        let angle = 2 * Math.PI * Math.random();
+                        force.forceFix = [Math.cos(angle), Math.sin(angle), 0];
+                        force.force = constraint.ymax + Math.random() * 0.2 - 0.1;
+                        constraint.zmax = constraint.xmax + Math.random() - 0.5;
+
+                        let force2 = constraint.force2;
+                        force2.force = constraint.xmin + Math.random() - 0.5;
                     }
-                    force.force -= constraint.xmin;
+                }
+                break;
+            case Constraint.BOIDS_LEADER:
+                {
+                    let pNext = this.stateNext[constraint.index_p];
+                    let pCurr = this.state[constraint.index_p];
+
+                    constraint.xmin += elapsedTime;
+                    constraint.xmin = constraint.xmin > 5.0 ? 0 : constraint.xmin;
+                    let angle = constraint.xmin / 5.0 * Math.PI * 2;
+                    pNext.pos[0] = Math.cos(angle) * 4.0;
+                    pNext.pos[1] = Math.sin(angle) * 4.0;
+                    pNext.pos[2] = Math.cos(angle) * 2.0;
+                }
+                break;
+            case Constraint.SPHERE:
+                {
+                    for (let i = 0; i < this.particleCount; i++) {
+                        let pNext = this.stateNext[i];
+                        let pCurr = this.state[i];
+
+                        // [x,y,z]min = sphere center
+                        // xmax = radius
+                        let vec = [0, 0, 0];
+                        vec[0] = constraint.xmin - pNext.pos[0];
+                        vec[1] = constraint.ymin - pNext.pos[1];
+                        vec[2] = constraint.zmin - pNext.pos[2];
+
+                        let dist = Math.sqrt(Math.pow(vec[0], 2) + Math.pow(vec[1], 2) + Math.pow(vec[2], 2));
+                        let length = Math.sqrt(Math.pow(pNext.vel[0], 2) + Math.pow(pNext.vel[1], 2) + Math.pow(pNext.vel[2], 2));
+
+                        if (dist <= constraint.xmax && vec[2] >= 0) {
+                            let cos = vec[0] * pNext.vel[0] + vec[1] * pNext.vel[1] + vec[1] * pNext.vel[1];
+                            cos /= dist * length;
+
+                            let cDist = length * cos;
+                            let vecNorm = this.normalize(vec);
+                            // if (i == 0) console.log(`before: ${pNext.vel}`);
+                            // if (i == 0) console.log(`vec before: ${vecNorm}`);
+                            for (let j = 0; j < 3; j++) {
+                                vecNorm[j] *= cDist;
+                                pNext.vel[j] -= vecNorm[j];
+                                if (j < 2) pNext.vel[j] *= 15;
+                                pNext.pos[j] = pCurr.pos[j] + pNext.vel[j] * elapsedTime;
+                            }
+                            // if (i == 0) console.log(`vec: ${vecNorm}`);
+                            // if (i == 0) console.log(`after:  ${pNext.vel}`);
+                        }
+                    }
                 }
                 break;
         }
@@ -876,6 +1123,27 @@ class ParticleSystem {
         }
     }
 
+    getParticleIndex(index) {
+        if (index < 0) {
+            index += this.particleCount;
+        } else if (index >= this.particleCount) {
+            index -= this.particleCount;
+        }
+
+        return index;
+    }
+
+    normalize(vec) {
+        let k = Math.pow(vec[0] + 0.00001, 2) + Math.pow(vec[1] + 0.00001, 2) +
+            Math.pow(vec[2] + 0.00001, 2);
+        k = Math.sqrt(k);
+        let res = [0, 0, 0];
+        res[0] = vec[0] / k;
+        res[1] = vec[1] / k;
+        res[2] = vec[2] / k;
+        return res;
+    }
+
     changeModel(index) {
         this.setCurrentModel(this.models[this.models.names[index]]);
     }
@@ -887,7 +1155,11 @@ class ParticleSystem {
         return Math.sqrt(sq_x + sq_y + sq_z);
     }
 
-    switchSolver() {
+    switchImplicit() {
         this.implicit = !this.implicit;
+    }
+
+    switchSolver(index) {
+        this.currentSolver = this.solvers[index];
     }
 }

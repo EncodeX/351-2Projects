@@ -112,38 +112,38 @@ var vShaderGauroud =
     'void main()\n' +
     '{\n' +
     '  getEyeSpace( EyeNormal, HeadNormal, EyePosition, HeadPosition );\n' +
-    // '\n' +
-    // '  FrontColor = vec4(0, 0, 0, 1);\n' +
-    // '  BackColor = vec4(0, 0, 0, 1);\n' +
-    // '\n' +
-    // '  ShadingMode = float(Shading);\n' +
-    // '  LightingMode = float(Lighting);\n' +
-    // '\n' +
-    // '  if(Shading == 1){\n' +
-    // '    if(GauroudLight[0].Switch == 1 )\n' +
-    // '    {\n' +
-    // '      FrontColor += lightV( 0, EyePosition, EyeNormal );\n' +
-    // '      BackColor += lightV( 0, EyePosition, -EyeNormal );\n' +
-    // '    }\n' +
-    // '\n' +
-    // '    if(GauroudLight[1].Switch == 1 )\n' +
-    // '    {\n' +
-    // '      FrontColor += lightV( 1, HeadPosition, HeadNormal );\n' +
-    // '      BackColor += lightV( 1, HeadPosition, -HeadNormal );\n' +
-    // '    }\n' +
-    // '\n' +
-    // '    if(GauroudLight[2].Switch == 1 )\n' +
-    // '    {\n' +
-    // '      FrontColor += lightV( 2, EyePosition, EyeNormal );\n' +
-    // '      BackColor += lightV( 2, EyePosition, -EyeNormal );\n' +
-    // '    }\n' +
-    // '  }else{ FrontColor = vec4(VertexColor, 1.0); }\n' +
+    '\n' +
+    '  FrontColor = vec4(0, 0, 0, 1);\n' +
+    '  BackColor = vec4(0, 0, 0, 1);\n' +
+    '\n' +
+    '  ShadingMode = float(Shading);\n' +
+    '  LightingMode = float(Lighting);\n' +
+    '\n' +
+    '  if(Shading == 1){\n' +
+    '    if(GauroudLight[0].Switch == 1 )\n' +
+    '    {\n' +
+    '      FrontColor += lightV( 0, EyePosition, EyeNormal );\n' +
+    '      BackColor += lightV( 0, EyePosition, -EyeNormal );\n' +
+    '    }\n' +
+    '\n' +
+    '    if(GauroudLight[1].Switch == 1 )\n' +
+    '    {\n' +
+    '      FrontColor += lightV( 1, HeadPosition, HeadNormal );\n' +
+    '      BackColor += lightV( 1, HeadPosition, -HeadNormal );\n' +
+    '    }\n' +
+    '\n' +
+    '    if(GauroudLight[2].Switch == 1 )\n' +
+    '    {\n' +
+    '      FrontColor += lightV( 2, EyePosition, EyeNormal );\n' +
+    '      BackColor += lightV( 2, EyePosition, -EyeNormal );\n' +
+    '    }\n' +
+    '  }else{ FrontColor = VertexColor; }\n' +
     '\n' +
     '  gl_Position = ProjMatrix * ModelViewMatrix * vec4(VertexPosition, 1.0);\n' +
     '  gl_PointSize = VertexSize;\n' +
-    '  FrontColor = VertexColor;\n' +
-    // '  if(DistortSwitch == 1)\n' +
-    // '    gl_Position = Distort(gl_Position);\n' +
+    // '  FrontColor = VertexColor;\n' +
+    '  if(DistortSwitch == 1)\n' +
+    '    gl_Position = Distort(gl_Position);\n' +
     '}\n';
 var fShaderGauroud =
     '#ifdef GL_ES\n' +
@@ -396,7 +396,7 @@ function initVBOs() {
 
     // VBO particle
     vboParticle = new VBOBox(g_gl);
-    particleCount = 1000;
+    particleCount = 600;
     particleSystem = new ParticleSystem();
     particleSystem.init(particleCount);
     vboParticle.addShape("particles", ShapeBuilder.makeParticles(particleCount), Material(MATL_TURQUOISE), false);
@@ -526,6 +526,7 @@ function keyDownHandler(e) {
         case 50:
         case 51:
         case 52:
+        case 53:
             // vboGround.switchLightShading(e.keyCode - 49);
             particleSystem.changeModel(e.keyCode - 49);
             break;
@@ -534,7 +535,7 @@ function keyDownHandler(e) {
         case 57:
             vboGround.updateAttenuation(e.keyCode - 55);
             break;
-        case 53:
+        case 54:
             vboGround.switchDistortion();
             break;
         case 37: // ←
@@ -552,9 +553,27 @@ function keyDownHandler(e) {
         case 82: // r
             particleSystem.addForce();
             break;
-        case 67: // c
-            particleSystem.switchSolver();
+        case 77: // m
+            particleSystem.switchImplicit();
             break;
+        case 90: // z
+            particleSystem.switchSolver(0);
+            break;
+        case 88: // x
+            particleSystem.switchSolver(1);
+            break;
+        case 67: // c
+            particleSystem.switchSolver(2);
+            break;
+            // case 86: // v
+            //     particleSystem.switchSolver(3);
+            //     break;
+            // case 66: // b
+            //     particleSystem.switchSolver(4);
+            //     break;
+            // case 78: // n
+            //     particleSystem.switchSolver(5);
+            //     break;
     }
     vboGround.updateKeyEvents(cameraControl, directionControl, lightControl);
     vboParticle.updateKeyEvents(cameraControl, directionControl, lightControl);

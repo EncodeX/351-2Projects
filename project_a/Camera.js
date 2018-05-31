@@ -209,9 +209,10 @@ class Camara {
             this.qTotMirror.copy(qTemp);
         }
 
-        this.multiplyVec3(this.qTotMirror, this.cameraHeadVec, this.cHead);
+        // this.multiplyVec3(this.qTotMirror, this.cameraHeadVec, this.cHead);
         this.multiplyVec3(this.qTotMirror, this.cameraLookVec, this.cLook);
         this.multiplyVec3(this.qTotMirror, this.cameraRightVec, this.cRight);
+        this.cHead = this.cross(this.cRight, this.cLook);
 
 
         if (this.cameraControl[1] != 0) {

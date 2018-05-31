@@ -5,7 +5,7 @@ class VBOBox {
         this.gl = gl;
 
         this.floatsPerVertex = ShapeBuilder.BYTES_PER_ELEMENT;
-        this.camera = new Camara(new Vector3([-4, 16, 5]), new Vector3([-16, -4, 0]), new Vector3([4, -16, -5]));
+        this.camera = new Camara(new Vector3([0, 18, 4]), new Vector3([-18, 0, 0]), new Vector3([0, -18, -4]));
         this.modelViewMatrix = new Matrix4();
         this.projMatrix = new Matrix4();
         this.normalMatrix = new Matrix4();

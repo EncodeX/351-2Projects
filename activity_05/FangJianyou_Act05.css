@@ -1,0 +1,62 @@
+body {
+    font-family: Helvetica, 'Hiragino Sans GB', 'Microsoft Yahei', '微软雅黑', Arial, sans-serif;
+    margin: auto;
+}
+
+.content {
+    position: fixed;
+    display: -webkit-flex;
+    display: -moz-box;
+    display: -ms-flexbox;
+    display: -webkit-box;
+    display: flex;
+    -webkit-box-align: center;
+    -moz-box-align: center;
+    -ms-flex-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-box-pack: center;
+    -moz-box-pack: center;
+    -ms-flex-pack: center;
+    -webkit-justify-content: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.intro {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background-color: #00000033;
+    padding: 16px;
+    border: 2px solid #00000044;
+    color: #ffffffdd;
+    min-width: 16rem;
+    max-width: 20rem;
+    display: none;
+}
+
+.bullet>span {
+    padding-left: .5rem;
+}
+
+input {
+    max-width: 2rem;
+    background: #00000033;
+    color: white;
+    border: 2px solid #00000066;
+    text-align: right;
+    margin-left: .1rem;
+}
+
+h4 {
+    margin: .5rem 0;
+}
+
+h3 {
+    margin: .8rem 0;
+}
+
+p {
+    font-size: 9pt;
+}
