@@ -15,7 +15,8 @@ export default class GridPlane extends Geometry {
 
     trace(ray) {
         // transform ray
-        let r = this.applyMatrix(ray);
+        let r = ray;
+        r = this.applyMatrix(r);
         // trace grid;
         let hit = glMatrix.vec3.create();
         let t = (this.z - r.origin[2]) / r.direction[2];

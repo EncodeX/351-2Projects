@@ -9,6 +9,10 @@ export default class Scene {
         this.image = new Image();
         this.camera = camera;
         this.shape = new GridPlane(-5.0);
+
+        // this.shape.translate(0.1, 0, 0);
+        this.shape.scale(2, 2, 2);
+        // this.shape.rotate(-90, 0, 0);
     }
 
     refreshImage() {
@@ -20,12 +24,7 @@ export default class Scene {
                     sum = [0, 0];
                 let step = 1 / steps;
 
-                // for (let k = 0; k < 16; k++) {
-                //     let dir = this.camera.getDirection(
-                //         glMatrix.vec2.fromValues(i + Math.random() * 2 - 1, j + Math.random() * 2 - 1));
-                //     let ray = new Ray(this.camera.getPosition(), dir);
-                //     hitList.push(this.shape.trace(ray));
-                // }
+                // TODO separate hit test and color, as well as sampling method
 
                 // No sampling
                 // let dir = this.camera.getDirection(

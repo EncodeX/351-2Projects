@@ -1,7 +1,7 @@
 export default class Image {
-    constructor() {
-        this.height = 256;
-        this.width = 256;
+    constructor(height, width) {
+        this.height = height;
+        this.width = width;
         this.pixSize = 3;
         this.intBuffer = new Uint8Array(this.height * this.width * this.pixSize);
         this.floatBuffer = new Float32Array(this.height * this.width * this.pixSize);

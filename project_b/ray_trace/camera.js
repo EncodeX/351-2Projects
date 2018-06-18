@@ -52,28 +52,33 @@ export default class Camera {
 
     updateCamera(elapsedTime) {
         if (this.directionControl[2] != 0) {
-            this.rotateZ(this.rotateSpeed * elapsedTime * this.directionControl[2]);
+            this.rotateY(this.rotateSpeed * elapsedTime * this.directionControl[2]);
         }
 
         if (this.directionControl[1] != 0) {
-            this.rotateY(this.rotateSpeed * elapsedTime * this.directionControl[1]);
+            this.rotateZ(this.rotateSpeed * elapsedTime * this.directionControl[1]);
         }
 
         if (this.directionControl[0] != 0) {
             this.rotateX(this.rotateSpeed * elapsedTime * this.directionControl[0]);
         }
 
-        glMatrix.vec3.transformQuat(this.cLook, this.cameraLookVec, this.qTotMirror);
-        glMatrix.vec3.transformQuat(this.cRight, this.cameraRightVec, this.qTotMirror);
-        glMatrix.vec3.cross(this.cHead, this.cRight, this.cLook);
 
+        if (this.cameraControl[2] != 0) {
+            this.cameraPos[0] += this.cLook[0] *
+                this.moveSpeed * elapsedTime * this.cameraControl[2];
+            this.cameraPos[1] += this.cLook[1] *
+                this.moveSpeed * elapsedTime * this.cameraControl[2];
+            this.cameraPos[2] += this.cLook[2] *
+                this.moveSpeed * elapsedTime * this.cameraControl[2];
+        }
 
         if (this.cameraControl[1] != 0) {
-            this.cameraPos[0] += this.cLook[0] *
+            this.cameraPos[0] += this.cHead[0] *
                 this.moveSpeed * elapsedTime * this.cameraControl[1];
-            this.cameraPos[1] += this.cLook[1] *
+            this.cameraPos[1] += this.cHead[1] *
                 this.moveSpeed * elapsedTime * this.cameraControl[1];
-            this.cameraPos[2] += this.cLook[2] *
+            this.cameraPos[2] += this.cHead[2] *
                 this.moveSpeed * elapsedTime * this.cameraControl[1];
         }
 
@@ -86,21 +91,17 @@ export default class Camera {
                 this.moveSpeed * elapsedTime * this.cameraControl[0];
         }
 
-        if (this.cameraControl[2] != 0) {
-            this.cameraPos[0] += this.cHead[0] *
-                this.moveSpeed * elapsedTime * this.cameraControl[2];
-            this.cameraPos[1] += this.cHead[1] *
-                this.moveSpeed * elapsedTime * this.cameraControl[2];
-            this.cameraPos[2] += this.cHead[2] *
-                this.moveSpeed * elapsedTime * this.cameraControl[2];
-        }
-
-        let qTemp = glMatrix.quat.create();
-        glMatrix.quat.mul(qTemp, this.qBase, this.qTot);
-
-        glMatrix.mat4.fromQuat(this.quatMatrix, qTemp);
-        glMatrix.mat4.translate(
-            this.quatMatrix, this.quatMatrix, this.cameraPos.map(x => -x)
+        // let qTemp = glMatrix.quat.create();
+        // glMatrix.quat.mul(qTemp, this.qBase, this.qTot);
+        //
+        // glMatrix.mat4.fromQuat(this.quatMatrix, qTemp);
+        // glMatrix.mat4.translate(
+        //     this.quatMatrix, this.quatMatrix, this.cameraPos.map(x => -x)
+        // );
+        glMatrix.mat4.lookAt(
+            this.quatMatrix,
+            this.cameraPos, [0, 0, 0].map((_, i) => this.cameraPos[i] + this.cLook[i]),
+            this.cHead
         );
     }
 
@@ -108,14 +109,14 @@ export default class Camera {
         return glMatrix.vec4.fromValues(...this.cameraPos, 1.0);
     }
 
-    getDirection(p) {
+    getDirection(p, height, width) {
         let out = glMatrix.vec3.create();
-        let px = (p[0] - 127.5) / 255.0;
-        let py = (p[1] - 127.5) / 255.0;
+        let px = (p[0] - 0.5 * height) / (0.5 * height);
+        let py = (p[1] - 0.5 * width) / (0.5 * width);
         glMatrix.vec3.scaleAndAdd(out, out, this.cLook, 1.0);
         glMatrix.vec3.scaleAndAdd(out, out, this.cRight, px);
         glMatrix.vec3.scaleAndAdd(out, out, this.cHead, py);
-        glMatrix.vec3.normalize(out, out);
+        // glMatrix.vec3.normalize(out, out);
         return glMatrix.vec4.fromValues(...out, 0.0);
     }
 
@@ -126,21 +127,47 @@ export default class Camera {
         glMatrix.quat.mul(qTemp, this.qNew, this.qTot);
         glMatrix.quat.copy(this.qTot, qTemp);
 
+        // glMatrix.quat.copy(this.qTot, this.qNew);
+
         glMatrix.quat.fromEuler(this.qNew, deg, 0, 0);
         glMatrix.quat.mul(qTemp, this.qNew, this.qTotMirror);
         glMatrix.quat.copy(this.qTotMirror, qTemp);
+
+        // glMatrix.quat.copy(this.qTotMirror, this.qNew);
+
+        // glMatrix.quat.rotateX(this.qTot, this.qTot, this.deg2rad(-deg));
+        // glMatrix.quat.rotateX(this.qTotMirror, this.qTotMirror, this.deg2rad(deg));
+
+        // glMatrix.vec3.transformQuat(this.cLook, this.cLook, this.qTotMirror);
+        // glMatrix.vec3.transformQuat(this.cRight, this.cRight, this.qTotMirror);
+        glMatrix.vec3.transformQuat(this.cLook, this.cameraLookVec, this.qTotMirror);
+        glMatrix.vec3.transformQuat(this.cRight, this.cameraRightVec, this.qTotMirror);
+        glMatrix.vec3.cross(this.cHead, this.cRight, this.cLook);
     }
 
     rotateY(deg) {
         let qTemp = glMatrix.quat.create();
 
-        glMatrix.quat.fromEuler(this.qNew, 0, deg, 0);
+        glMatrix.quat.fromEuler(this.qNew, 0, -deg, 0);
         glMatrix.quat.mul(qTemp, this.qNew, this.qTot);
         glMatrix.quat.copy(this.qTot, qTemp);
 
-        glMatrix.quat.fromEuler(this.qNew, 0, -deg, 0);
+        // glMatrix.quat.copy(this.qTot, this.qNew);
+
+        glMatrix.quat.fromEuler(this.qNew, 0, deg, 0);
         glMatrix.quat.mul(qTemp, this.qNew, this.qTotMirror);
         glMatrix.quat.copy(this.qTotMirror, qTemp);
+
+        // glMatrix.quat.copy(this.qTotMirror, this.qNew);
+
+        // glMatrix.quat.rotateY(this.qTot, this.qTot, this.deg2rad(-deg));
+        // glMatrix.quat.rotateY(this.qTotMirror, this.qTotMirror, this.deg2rad(deg));
+
+        // glMatrix.vec3.transformQuat(this.cLook, this.cLook, this.qTotMirror);
+        // glMatrix.vec3.transformQuat(this.cRight, this.cRight, this.qTotMirror);
+        glMatrix.vec3.transformQuat(this.cLook, this.cameraLookVec, this.qTotMirror);
+        glMatrix.vec3.transformQuat(this.cRight, this.cameraRightVec, this.qTotMirror);
+        glMatrix.vec3.cross(this.cHead, this.cRight, this.cLook);
     }
 
     rotateZ(deg) {
@@ -150,8 +177,25 @@ export default class Camera {
         glMatrix.quat.mul(qTemp, this.qNew, this.qTot);
         glMatrix.quat.copy(this.qTot, qTemp);
 
+        // glMatrix.quat.copy(this.qTot, this.qNew);
+
         glMatrix.quat.fromEuler(this.qNew, 0, 0, -deg);
         glMatrix.quat.mul(qTemp, this.qNew, this.qTotMirror);
         glMatrix.quat.copy(this.qTotMirror, qTemp);
+
+        // glMatrix.quat.copy(this.qTotMirror, this.qNew);
+
+        // glMatrix.quat.rotateZ(this.qTot, this.qTot, this.deg2rad(-deg));
+        // glMatrix.quat.rotateZ(this.qTotMirror, this.qTotMirror, this.deg2rad(deg));
+
+        // glMatrix.vec3.transformQuat(this.cLook, this.cLook, this.qTotMirror);
+        // glMatrix.vec3.transformQuat(this.cRight, this.cRight, this.qTotMirror);
+        glMatrix.vec3.transformQuat(this.cLook, this.cameraLookVec, this.qTotMirror);
+        glMatrix.vec3.transformQuat(this.cRight, this.cameraRightVec, this.qTotMirror);
+        glMatrix.vec3.cross(this.cHead, this.cRight, this.cLook);
+    }
+
+    deg2rad(x) {
+        return x / 180 * Math.PI;
     }
 }

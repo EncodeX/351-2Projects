@@ -3,9 +3,9 @@
 
 <head>
     <meta charset="utf-8" />
-    <title>Particle System</title>
+    <title>Ray Tracing</title>
 
-    <link href="/FangJianyou_Act06.css" rel="stylesheet" />
+    <link href="/FangJianyou_ProjB.css" rel="stylesheet" />
 </head>
 <!--	Create the HTML5 'canvas' element in which we will run WebGL
 	-->
@@ -19,7 +19,7 @@
             <h3>Introduction</h3>
 
             <p>
-                Bouncing Balls! Press r to apply force! Press m to switch implicit / explicit solver.
+                Ray trace! Use buttons below to apply tracing.
             </p>
 
             <p>
@@ -27,12 +27,26 @@
             </p>
 
             <p>
-                Press 1-5 to switch particle models.<br/> 1: bouncing balls<br/> 2: spring sphere<br/> 3: flame under a sphere<br/> 4: tornado<br/> 5: boids
+                <button onclick="switchScene(0)">Scene 0</button>
+                <button onclick="switchScene(1)">Scene 1</button>
+                <button onclick="switchScene(2)">Scene 2</button>
+                <button onclick="switchScene(3)">Scene 3</button>
             </p>
 
             <p>
-                Press z,x,c to switch particle models.<br/> z: euler solver<br/> x: mid-point solver<br/> c: verlet solver
+                <button onclick="switchLight(0)">Light 0 Switch</button>
+                <button onclick="switchLight(1)">Light 1 Switch</button>
             </p>
+
+            <div>
+                <p>Reflect Recursion = <input value="2" id="recursion"></input>
+                </p>
+                <p><button onclick="applyJitter()">Jitter NxN sampling</button> N = <input value="2" id="jitterVal"></input>
+                </p>
+                <p><button onclick="applySuper()">Super NxN sampling</button> N = <input value="2" id="superVal"></input>
+                </p>
+                <p><button onclick="applyNoSamp()">No sampling</button></p>
+            </div>
         </div>
     </div>
     <!-- <br>
@@ -62,7 +76,7 @@
     <script src="/lib/webgl-debug.js"></script>
     <script src="/lib/cuon-utils.js"></script>
     <script src="/lib/materials_Ayerdi.js"></script>
-    <script type="module" src="/FangJianyou_Act06.js"></script>
+    <script type="module" src="/FangJianyou_ProjB.js"></script>
 </body>
 
 </html>
